@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Defender</title>
+    <style>
+        :root {
+            --border-color: #0066ff;
+            --glow-intensity: 10px;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            box-shadow: none;
+            position: relative;
+            z-index: 1;
+        }
+        #gameBorder {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border: 4px solid var(--border-color);
+            border-radius: 20px;
+            box-shadow: 
+                0 0 5px var(--border-color),
+                0 0 var(--glow-intensity) var(--border-color),
+                inset 0 0 5px var(--border-color),
+                inset 0 0 var(--glow-intensity) var(--border-color);
+            pointer-events: none;
+            z-index: 5;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease, opacity 0.4s ease;
+        }
+        #gameOver {
+            position: absolute;
+            color: white;
+            text-align: center;
+            display: none;
+            z-index: 10;
+            text-shadow: 0 0 20px #ff0000;
+        }
+        #gameOver h1 {
+            font-size: 48px;
+            color: #ff4444;
+            text-shadow: 0 0 10px #ff0000;
+        }
+        #gameOver p {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #0066ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #0044cc;
+        }
+        #pauseMenu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            color: white;
+            display: none;
+            z-index: 10;
+            border: 2px solid #0066ff;
+            box-shadow: 0 0 30px #0066ff;
+        }
+        #pauseMenu h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            color: #0066ff;
+            text-shadow: 0 0 15px #0066ff;
+        }
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+            text-shadow: 0 0 20px #0066ff;
+        }
+        #startScreen h1 {
+            font-size: 48px;
+            color: #0066ff;
+            text-shadow: 0 0 30px #0066ff;
+            margin-bottom: 10px;
+        }
+        #startScreen .subtitle {
+            font-size: 24px;
+            margin-bottom: 30px;
+            color: #aaccff;
+        }
+        .instructionsGrid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 800px;
+            margin: 20px 0 40px 0;
+        }
+        .instructionSection {
+            text-align: left;
+            background-color: rgba(0, 30, 60, 0.6);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #0066ff;
+            box-shadow: 0 0 15px #0066ff;
+        }
+        .instructionSection h3 {
+            color: #66aaff;
+            margin-top: 0;
+        }
+        .colorSample {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="gameBorder"></div>
+    <div id="gameOver">
+        <h1>Game Over</h1>
+        <p>Your score: <span id="finalScore">0</span></p>
+        <button id="restartButton" class="button">Play Again</button>
+    </div>
+    
+    <div id="pauseMenu">
+        <h2>Game Paused</h2>
+        <p>Press ESC or click below to resume</p>
+        <button id="resumeButton" class="button">Resume Game</button>
+    </div>
+    
+    <div id="startScreen">
+        <h1>Space Defender</h1>
+        <div class="subtitle">Survive waves of enemies in deep space!</div>
+        
+        <div class="instructionsGrid">
+            <div class="instructionSection">
+                <h3>Controls</h3>
+                <p><strong>WASD</strong> - Move your ship</p>
+                <p><strong>Mouse</strong> - Aim your weapons</p>
+                <p><strong>Left Click</strong> - Fire weapons</p>
+                <p><strong>ESC</strong> - Pause game</p>
+            </div>
+            
+            <div class="instructionSection">
+                <h3>Game Mechanics</h3>
+                <p>• Your weapons overheat with continuous fire</p>
+                <p>• Enemies come in waves with increasing difficulty</p>
+                <p>• Ship has realistic physics - takes time to accelerate and decelerate</p>
+            </div>
+            
+            <div class="instructionSection">
+                <h3>Power-ups</h3>
+                <p><span class="colorSample" style="background-color: #aa44ff;"></span> <strong>Rapid Fire</strong> - Shoot faster without overheating</p>
+                <p><span class="colorSample" style="background-color: #00aaff;"></span> <strong>Shield</strong> - Absorbs one enemy hit</p>
+                <p><span class="colorSample" style="background-color: #00ff00;"></span> <strong>Health</strong> - Restores ship health</p>
+            </div>
+            
+            <div class="instructionSection">
+                <h3>Enemies</h3>
+                <p><span class="colorSample" style="background-color: #ffff44;"></span> <strong>Yellow</strong> - 1 hit to destroy, fast</p>
+                <p><span class="colorSample" style="background-color: #ff9944;"></span> <strong>Orange</strong> - 2 hits to destroy, medium</p>
+                <p><span class="colorSample" style="background-color: #ff4444;"></span> <strong>Red</strong> - 3 hits to destroy, slow but powerful</p>
+            </div>
+        </div>
+        
+        <button id="startGameButton" class="button">Start Game</button>
+    </div>
+
+    <script>
+        // Game setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const restartButton = document.getElementById('restartButton');
+        const pauseMenu = document.getElementById('pauseMenu');
+        const resumeButton = document.getElementById('resumeButton');
+        const startScreen = document.getElementById('startScreen');
+        const startGameButton = document.getElementById('startGameButton');
+        
+        // Set canvas to full window size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        // Initial setup
+        resizeCanvas();
+        
+        let score = 0;
+        let gameActive = false;  // Changed to false to start with start screen
+        let isPaused = false;
+        let showingStartScreen = true;
+        
+        // Border effect for power-ups
+        let borderEffect = {
+            color: '#0066ff', // Default color
+            isPulsing: false,
+            pulseValue: 0,
+            pulseDirection: 1,
+            pulseSpeed: 0.1,
+            isRainbow: false,  // Disable rainbow effect completely
+            rainbowHue: 0,
+            isFlashing: false, // For white flash effect
+            flashDuration: 0,  // Counter for flash duration
+            opacity: 0,        // Fully invisible by default
+            flashColor: '#ffffff' // Default flash color (white)
+        };
+        
+        // Camera shake effect
+        let cameraShake = {
+            intensity: 0,
+            duration: 0,
+            maxDuration: 0,
+            offsetX: 0,
+            offsetY: 0
+        };
+        
+        // Floating score indicators
+        const floatingTexts = [];
+        
+        // Player setup
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 20,
+            color: '#00aaff', // Brighter blue color
+            glowColor: '#66ddff', // Glow color for player
+            speed: 0.3, // Reduced for acceleration-based movement
+            maxSpeed: 6, // Maximum speed cap
+            velocity: { x: 0, y: 0 }, // New velocity property
+            friction: 0.98, // Friction coefficient for realistic deceleration
+            health: 100,
+            maxHealth: 100,
+            direction: {
+                x: 0,
+                y: 0
+            },
+            lookAngle: 0,
+            // Weapon heat system
+            heat: 0,
+            maxHeat: 100,
+            cooling: true,
+            overheated: false
+        };
+        
+        // Controls
+        const keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false
+        };
+        
+        let mouseX = 0;
+        let mouseY = 0;
+        let mouseDown = false;
+        
+        // Projectiles
+        const projectiles = [];
+        let lastShot = 0;
+        const shootCooldown = 200; // ms
+        
+        // Enemies
+        const enemies = [];
+        let lastEnemySpawn = 0;
+        let enemySpawnRate = 1000; // ms
+        let waveNumber = 1;
+        let enemiesInWave = 10; // Base number of enemies per wave
+        let enemiesRemaining = enemiesInWave;
+        let waveActive = true;
+        let waveCountdown = 5; // Seconds between waves
+        let lastCountdownTick = 0;
+        let waveMessage = "";
+        let waveMessageOpacity = 0;
+        let showingWaveMessage = false;
+        
+        // Particles
+        const particles = [];
+        
+        // Power-ups
+        const powerUps = [];
+        let lastPowerUpSpawn = 0;
+        const powerUpSpawnRate = 10000; // ms
+        
+        // Healing blobs
+        const healingBlobs = [];
+        let lastHealingBlobSpawn = 0;
+        const healingBlobSpawnRate = 15000; // ms (less frequent than power-ups)
+        
+        // Game states
+        let currentPowerUp = null;
+        let powerUpTimer = 0;
+        let rapidFireActive = false;
+        let shieldActive = false;
+        let shieldEndTime = 0; // New variable to track shield duration
+        
+        // Add tracking variables for enhanced scoreboard
+        let highScore = 0;
+        let scoreAnimation = {
+            active: false,
+            value: 0,
+            targetValue: 0,
+            duration: 0,
+            startTime: 0
+        };
+        let enemyStats = {
+            tier1Destroyed: 0,
+            tier2Destroyed: 0,
+            tier3Destroyed: 0
+        };
+        let accuracy = {
+            shotsFired: 0,
+            hitsLanded: 0
+        };
+        let powerupStats = {
+            rapidFireCollected: 0,
+            shieldCollected: 0,
+            healthBoostCollected: 0
+        };
+        let lastScoreUpdate = 0;
+        let scoreFlash = 0;
+        
+        // Event listeners
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'w' || e.key === 'W') keys.w = true;
+            if (e.key === 'a' || e.key === 'A') keys.a = true;
+            if (e.key === 's' || e.key === 'S') keys.s = true;
+            if (e.key === 'd' || e.key === 'D') keys.d = true;
+            
+            // Handle pause with Escape key
+            if (e.key === 'Escape' && gameActive && !showingStartScreen) {
+                togglePause();
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'w' || e.key === 'W') keys.w = false;
+            if (e.key === 'a' || e.key === 'A') keys.a = false;
+            if (e.key === 's' || e.key === 'S') keys.s = false;
+            if (e.key === 'd' || e.key === 'D') keys.d = false;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            
+            // Calculate angle for player to face mouse
+            player.lookAngle = Math.atan2(mouseY - player.y, mouseX - player.x);
+        });
+        
+        canvas.addEventListener('mousedown', () => {
+            mouseDown = true;
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            mouseDown = false;
+        });
+        
+        restartButton.addEventListener('click', restartGame);
+        
+        // Add event listeners for pause menu
+        resumeButton.addEventListener('click', () => {
+            togglePause();
+        });
+        
+        // Add event listener for start screen
+        startGameButton.addEventListener('click', () => {
+            showingStartScreen = false;
+            startScreen.style.display = 'none';
+            gameActive = true;
+            restartGame(); // Initialize the game
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            // Save player's relative position
+            const relativeX = player.x / canvas.width;
+            const relativeY = player.y / canvas.height;
+            
+            // Resize canvas
+            resizeCanvas();
+            
+            // Update player position
+            player.x = relativeX * canvas.width;
+            player.y = relativeY * canvas.height;
+        });
+        
+        // Pause function
+        function togglePause() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseMenu.style.display = 'block';
+            } else {
+                pauseMenu.style.display = 'none';
+                // Continue game loop
+                if (!animationFrameId) {
+                    update();
+                }
+            }
+        }
+        
+        let animationFrameId = null;
+        
+        // Game functions
+        function update() {
+            if (!gameActive || isPaused) {
+                animationFrameId = null;
+                return;
+            }
+            
+            // Update player movement
+            updatePlayerMovement();
+            
+            // Handle shooting
+            if (mouseDown && !player.overheated && Date.now() - lastShot > (rapidFireActive ? shootCooldown / 3 : shootCooldown)) {
+                shootProjectile();
+                lastShot = Date.now();
+                
+                // Add heat when shooting
+                player.heat += rapidFireActive ? 4 : 6;
+                if (player.heat >= player.maxHeat) {
+                    player.overheated = true;
+                    player.cooling = true;
+                }
+            }
+            
+            // Cool down weapon
+            if (player.cooling || player.heat > 0) {
+                player.heat = Math.max(0, player.heat - 0.5);
+                if (player.heat === 0 && player.overheated) {
+                    player.overheated = false;
+                }
+            }
+            
+            // Update projectiles
+            updateProjectiles();
+            
+            // Wave management
+            updateWaveSystem();
+            
+            // Update existing enemies
+            updateEnemies();
+            
+            // Update particles
+            updateParticles();
+            
+            // Update power-ups
+            if (Date.now() - lastPowerUpSpawn > powerUpSpawnRate) {
+                spawnPowerUp();
+                lastPowerUpSpawn = Date.now();
+            }
+            updatePowerUps();
+            
+            // Spawn and update healing blobs
+            if (Date.now() - lastHealingBlobSpawn > healingBlobSpawnRate) {
+                spawnHealingBlob();
+                lastHealingBlobSpawn = Date.now();
+            }
+            updateHealingBlobs();
+            
+            // Handle power-up timers
+            if (currentPowerUp) {
+                powerUpTimer -= 16; // Approximately 16ms per frame at 60fps
+                
+                // Start pulsing when 2 seconds or less remain
+                if (powerUpTimer <= 2000 && !borderEffect.isPulsing) {
+                    borderEffect.isPulsing = true;
+                    borderEffect.pulseValue = 0;
+                    borderEffect.pulseDirection = 1;
+                    borderEffect.pulseSpeed = 0.1;
+                }
+                
+                if (powerUpTimer <= 0) {
+                    deactivatePowerUp();
+                }
+            }
+            
+            // Check if shield duration has ended
+            if (shieldActive && Date.now() > shieldEndTime) {
+                shieldActive = false;
+                
+                // If this shield was from a power-up, also deactivate the power-up
+                if (currentPowerUp === 'shield') {
+                    deactivatePowerUp();
+                }
+            }
+            
+            // Update border effect
+            updateBorderEffect();
+            
+            // Update camera shake
+            updateCameraShake();
+            
+            // Update floating texts
+            updateFloatingTexts();
+            
+            // Draw everything
+            draw();
+            
+            // Next frame
+            animationFrameId = requestAnimationFrame(update);
+        }
+        
+        function updatePlayerMovement() {
+            // Set target direction based on keys
+            player.direction = { x: 0, y: 0 };
+            
+            if (keys.w) player.direction.y = -1;
+            if (keys.s) player.direction.y = 1;
+            if (keys.a) player.direction.x = -1;
+            if (keys.d) player.direction.x = 1;
+            
+            // Normalize diagonal movement
+            if (player.direction.x !== 0 && player.direction.y !== 0) {
+                const length = Math.sqrt(player.direction.x ** 2 + player.direction.y ** 2);
+                player.direction.x /= length;
+                player.direction.y /= length;
+            }
+            
+            // Apply acceleration - only accelerate when keys are pressed
+            if (player.direction.x !== 0 || player.direction.y !== 0) {
+                player.velocity.x += player.direction.x * player.speed;
+                player.velocity.y += player.direction.y * player.speed;
+                
+                // Cap maximum speed
+                const speed = Math.sqrt(player.velocity.x ** 2 + player.velocity.y ** 2);
+                if (speed > player.maxSpeed) {
+                    const ratio = player.maxSpeed / speed;
+                    player.velocity.x *= ratio;
+                    player.velocity.y *= ratio;
+                }
+            }
+            
+            // Apply friction to slow down
+            player.velocity.x *= player.friction;
+            player.velocity.y *= player.friction;
+            
+            // Update position based on velocity
+            player.x += player.velocity.x;
+            player.y += player.velocity.y;
+            
+            // Keep player in bounds
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+            
+            // If the player hit the boundary, reverse velocity with dampening
+            if (player.x === player.radius || player.x === canvas.width - player.radius) {
+                player.velocity.x *= -0.5;
+            }
+            if (player.y === player.radius || player.y === canvas.height - player.radius) {
+                player.velocity.y *= -0.5;
+            }
+        }
+        
+        function shootProjectile() {
+            // Limit the number of projectiles on screen
+            if (projectiles.length >= 20) return;
+            
+            const velocity = {
+                x: Math.cos(player.lookAngle) * 10,
+                y: Math.sin(player.lookAngle) * 10
+            };
+            
+            projectiles.push({
+                x: player.x + Math.cos(player.lookAngle) * player.radius,
+                y: player.y + Math.sin(player.lookAngle) * player.radius,
+                radius: 5,
+                color: '#fff',
+                velocity
+            });
+            
+            // Create muzzle flash particles
+            for (let i = 0; i < 3; i++) {
+                const angle = player.lookAngle + (Math.random() - 0.5) * 0.5;
+                const speed = Math.random() * 2 + 2;
+                
+                particles.push({
+                    x: player.x + Math.cos(player.lookAngle) * player.radius,
+                    y: player.y + Math.sin(player.lookAngle) * player.radius,
+                    radius: Math.random() * 3 + 1,
+                    color: '#ffaa00',
+                    velocity: {
+                        x: Math.cos(angle) * speed,
+                        y: Math.sin(angle) * speed
+                    },
+                    alpha: 1,
+                    fadeSpeed: 0.03
+                });
+            }
+            
+            // Track shots fired for accuracy calculation
+            accuracy.shotsFired++;
+        }
+        
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const projectile = projectiles[i];
+                
+                projectile.x += projectile.velocity.x;
+                projectile.y += projectile.velocity.y;
+                
+                // Remove projectiles that are off screen
+                if (
+                    projectile.x + projectile.radius < 0 ||
+                    projectile.x - projectile.radius > canvas.width ||
+                    projectile.y + projectile.radius < 0 ||
+                    projectile.y - projectile.radius > canvas.height
+                ) {
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+                
+                // Check collision with enemies
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    const distance = Math.hypot(projectile.x - enemy.x, projectile.y - enemy.y);
+                    
+                    if (distance - projectile.radius - enemy.radius < 0) {
+                        // Create hit particles
+                        for (let k = 0; k < 4; k++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const speed = Math.random() * 3 + 1;
+                            
+                            particles.push({
+                                x: projectile.x,
+                                y: projectile.y,
+                                radius: Math.random() * 3 + 1,
+                                color: '#ffffff',
+                                velocity: {
+                                    x: Math.cos(angle) * speed,
+                                    y: Math.sin(angle) * speed
+                                },
+                                alpha: 1,
+                                fadeSpeed: 0.02
+                            });
+                        }
+                        
+                        // Trigger white flash effect on hit
+                        borderEffect.isFlashing = true;
+                        borderEffect.flashDuration = 10; // Flash for 10 frames
+                        borderEffect.flashColor = '#ffffff'; // White flash for hits
+                        
+                        // Remove projectile
+                        projectiles.splice(i, 1);
+                        
+                        // Track hits landed for accuracy calculation
+                        accuracy.hitsLanded++;
+                        
+                        // Reduce enemy health
+                        enemy.health--;
+                        
+                        // If enemy is destroyed
+                        if (enemy.health <= 0) {
+                            // Create explosion particles
+                            for (let k = 0; k < 8; k++) {
+                                const angle = Math.random() * Math.PI * 2;
+                                const speed = Math.random() * 3 + 1;
+                                
+                                particles.push({
+                                    x: enemy.x,
+                                    y: enemy.y,
+                                    radius: Math.random() * 3 + 1,
+                                    color: enemy.color,
+                                    velocity: {
+                                        x: Math.cos(angle) * speed,
+                                        y: Math.sin(angle) * speed
+                                    },
+                                    alpha: 1,
+                                    fadeSpeed: 0.02
+                                });
+                            }
+                            
+                            // Award score based on tier
+                            const pointsEarned = enemy.tier * 10;
+                            
+                            // Animate score change
+                            scoreAnimation.active = true;
+                            scoreAnimation.value = score;
+                            scoreAnimation.targetValue = score;
+                            scoreAnimation.duration = 30; // frames
+                            scoreAnimation.startTime = Date.now();
+                            scoreFlash = 10; // frames of flash effect
+                            
+                            // Update high score if needed
+                            if (score > highScore) {
+                                highScore = score;
+                            }
+                            
+                            // Track enemy stats
+                            if (enemy.tier === 1) enemyStats.tier1Destroyed++;
+                            else if (enemy.tier === 2) enemyStats.tier2Destroyed++;
+                            else if (enemy.tier === 3) enemyStats.tier3Destroyed++;
+                            
+                            score += pointsEarned;
+                            
+                            // Add floating score text
+                            floatingTexts.push({
+                                x: enemy.x,
+                                y: enemy.y,
+                                value: `+${pointsEarned}`,
+                                color: enemy.color,
+                                size: 16 + enemy.tier * 4, // Size based on enemy tier
+                                velocity: { x: 0, y: -1.5 },
+                                alpha: 1,
+                                lifespan: 60 // Frames to live
+                            });
+                            
+                            // Add camera shake based on enemy tier
+                            const shakeIntensity = enemy.tier * 4; // More shake for higher tier enemies
+                            applyCameraShake(shakeIntensity, 10);
+                            
+                            // Longer white flash for enemy destroyed
+                            borderEffect.isFlashing = true;
+                            borderEffect.flashDuration = 15 + (enemy.tier * 5); // Longer flash for higher tier enemies
+                            borderEffect.flashColor = '#ffffff'; // White flash for kills
+                            
+                            enemies.splice(j, 1);
+                        }
+                        
+                        break;
+                    }
+                }
+            }
+        }
+        
+        function updateWaveSystem() {
+            if (waveActive) {
+                // Check if we should spawn an enemy
+                if (enemiesRemaining > 0 && Date.now() - lastEnemySpawn > enemySpawnRate) {
+                    spawnEnemy();
+                    lastEnemySpawn = Date.now();
+                    enemiesRemaining--;
+                }
+                
+                // Check if wave is complete
+                if (enemiesRemaining <= 0 && enemies.length === 0) {
+                    // Wave completed
+                    waveActive = false;
+                    waveCountdown = 5;
+                    lastCountdownTick = Date.now();
+                    
+                    // Show "Wave Complete" message
+                    waveMessage = `WAVE ${waveNumber} COMPLETE!`;
+                    waveMessageOpacity = 1;
+                    showingWaveMessage = true;
+                    
+                    // Award bonus for completing wave
+                    score += waveNumber * 50;
+                }
+            } else {
+                // In between waves - countdown
+                if (Date.now() - lastCountdownTick > 1000) {
+                    waveCountdown--;
+                    lastCountdownTick = Date.now();
+                    
+                    // Update countdown message
+                    if (waveCountdown > 0) {
+                        waveMessage = `WAVE ${waveNumber + 1} INCOMING: ${waveCountdown}`;
+                        waveMessageOpacity = 1;
+                        showingWaveMessage = true;
+                    } else {
+                        // Start next wave
+                        waveNumber++;
+                        enemiesInWave = 10 + (waveNumber - 1) * 5; // Increase enemies per wave
+                        enemiesRemaining = enemiesInWave;
+                        waveActive = true;
+                        
+                        // Show new wave message
+                        waveMessage = `WAVE ${waveNumber} STARTED!`;
+                        waveMessageOpacity = 1;
+                        showingWaveMessage = true;
+                        
+                        // Adjust difficulty
+                        enemySpawnRate = Math.max(200, 1000 - waveNumber * 100);
+                    }
+                }
+            }
+            
+            // Fade out wave message
+            if (showingWaveMessage) {
+                waveMessageOpacity -= 0.005;
+                if (waveMessageOpacity <= 0) {
+                    showingWaveMessage = false;
+                }
+            }
+        }
+        
+        function spawnEnemy() {
+            // Enemy tier system
+            // Tier 1 (yellow): Small, fast, 1 hit to kill
+            // Tier 2 (orange): Medium, moderate speed, 2 hits to kill
+            // Tier 3 (red): Large, slow, 3 hits to kill
+            
+            // Weighted enemy tier selection (higher chance for weaker enemies)
+            // Higher waves have more high-tier enemies
+            let tierRoll = Math.random();
+            
+            // Adjust tier probabilities based on wave number - increase factor for higher waves
+            const waveFactor = Math.min(0.6, (waveNumber - 1) * 0.1); // Increased from 0.05 to 0.1, max from 0.5 to 0.6
+            tierRoll -= waveFactor; // This makes higher tiers more likely in later waves
+            
+            let tier, color, health, size, speedFactor, damage;
+            
+            if (tierRoll < 0.5) {  // Reduced from 0.6 to 0.5 (50% chance for tier 1)
+                tier = 1;
+                color = '#ffff00'; // Brighter yellow
+                health = 1;
+                size = 10 + Math.random() * 5;
+                speedFactor = 1.2;
+                damage = 10;
+            } else if (tierRoll < 0.8) { // Reduced from 0.9 to 0.8 (30% chance for tier 2)
+                tier = 2;
+                color = '#ff6600'; // Brighter orange
+                health = 2;
+                size = 15 + Math.random() * 8;
+                speedFactor = 1.0;
+                damage = 20;
+            } else { // Increased from 10% to 20% chance for tier 3
+                tier = 3;
+                color = '#ff0000'; // Pure red
+                health = 3;
+                size = 20 + Math.random() * 12;
+                speedFactor = 0.8;
+                damage = 30;
+            }
+            
+            // Spawn from outside the screen
+            let x, y;
+            if (Math.random() < 0.5) {
+                x = Math.random() < 0.5 ? -size : canvas.width + size;
+                y = Math.random() * canvas.height;
+            } else {
+                x = Math.random() * canvas.width;
+                y = Math.random() < 0.5 ? -size : canvas.height + size;
+            }
+            
+            const angle = Math.atan2(player.y - y, player.x - x);
+            const speed = (2 + waveNumber * 0.2) * speedFactor;
+            
+            enemies.push({
+                x,
+                y,
+                radius: size,
+                color,
+                velocity: {
+                    x: Math.cos(angle) * speed,
+                    y: Math.sin(angle) * speed
+                },
+                health,
+                maxHealth: health,
+                tier,
+                damage
+            });
+        }
+        
+        function updateEnemies() {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                
+                // Update enemy position
+                enemy.x += enemy.velocity.x;
+                enemy.y += enemy.velocity.y;
+                
+                // Update direction to follow player
+                const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                
+                // Speed is affected by enemy tier
+                const speed = (2 + waveNumber * 0.2) * (enemy.tier === 1 ? 1.2 : enemy.tier === 2 ? 1.0 : 0.8);
+                
+                enemy.velocity.x = Math.cos(angle) * speed;
+                enemy.velocity.y = Math.sin(angle) * speed;
+                
+                // Check collision with player
+                const distance = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                
+                if (distance - player.radius - enemy.radius < 0) {
+                    // Create explosion particles
+                    for (let k = 0; k < 15; k++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 3 + 1;
+                        
+                        particles.push({
+                            x: enemy.x,
+                            y: enemy.y,
+                            radius: Math.random() * 3 + 1,
+                            color: enemy.color,
+                            velocity: {
+                                x: Math.cos(angle) * speed,
+                                y: Math.sin(angle) * speed
+                            },
+                            alpha: 1,
+                            fadeSpeed: 0.02
+                        });
+                    }
+                    
+                    // Add camera shake based on enemy tier for shield blocks
+                    if (shieldActive) {
+                        // More intense shake for shield blocks
+                        const shakeIntensity = enemy.tier * 6; // Higher intensity than regular kills
+                        applyCameraShake(shakeIntensity, 12);
+                        
+                        // Add shield impact floating text
+                        floatingTexts.push({
+                            x: enemy.x,
+                            y: enemy.y,
+                            value: `BLOCKED!`,
+                            color: '#00aaff', // Shield blue color
+                            size: 18 + enemy.tier * 3,
+                            velocity: { x: 0, y: -1.5 },
+                            alpha: 1,
+                            lifespan: 50
+                        });
+                        
+                        // Add shield impact particles (blue)
+                        for (let k = 0; k < 10; k++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const speed = Math.random() * 5 + 2;
+                            
+                            particles.push({
+                                x: (player.x + enemy.x) / 2,  // Midpoint between player and enemy
+                                y: (player.y + enemy.y) / 2,
+                                radius: Math.random() * 4 + 2,
+                                color: '#00aaff',  // Shield blue color
+                                velocity: {
+                                    x: Math.cos(angle) * speed,
+                                    y: Math.sin(angle) * speed
+                                },
+                                alpha: 1,
+                                fadeSpeed: 0.03
+                            });
+                        }
+                    }
+                    
+                    enemies.splice(i, 1);
+                    
+                    if (!shieldActive) {
+                        // Damage based on enemy tier
+                        player.health -= enemy.damage;
+                        
+                        // Display red flash when player is hit
+                        borderEffect.isFlashing = true;
+                        borderEffect.flashDuration = 20; // Longer flash for damage
+                        borderEffect.flashColor = '#ff0000'; // Red flash for player damage
+                        
+                        if (player.health <= 0) {
+                            gameOver();
+                        }
+                    }
+                }
+            }
+        }
+        
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                
+                particle.x += particle.velocity.x;
+                particle.y += particle.velocity.y;
+                particle.alpha -= particle.fadeSpeed;
+                
+                // Special handling for shooting stars
+                if (particle.isShootingStar) {
+                    // Make shooting stars fade faster
+                    particle.alpha -= 0.02;
+                    
+                    // Apply a glowing effect
+                    if (Math.random() < 0.1) {
+                        // Occasionally spawn smaller particles along the path
+                        particles.push({
+                            x: particle.x + (Math.random() - 0.5) * 5,
+                            y: particle.y + (Math.random() - 0.5) * 5,
+                            radius: Math.random() * 1.5,
+                            color: '#ffffff',
+                            velocity: {
+                                x: particle.velocity.x * 0.3,
+                                y: particle.velocity.y * 0.3
+                            },
+                            alpha: 0.7,
+                            fadeSpeed: 0.05
+                        });
+                    }
+                }
+                
+                if (particle.alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function spawnPowerUp() {
+            const types = ['rapidFire', 'shield', 'healthBoost'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            let color;
+            if (type === 'rapidFire') color = '#aa44ff'; // Purple for rapid fire
+            else if (type === 'shield') color = '#00aaff'; // Blue for shield
+            else color = '#00ff00'; // Green for health boost
+            
+            powerUps.push({
+                x: Math.random() * (canvas.width - 80) + 40,
+                y: Math.random() * (canvas.height - 80) + 40,
+                radius: 15,
+                color,
+                type,
+                pulse: 0,
+                pulseDirection: 0.05
+            });
+        }
+        
+        function updatePowerUps() {
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const powerUp = powerUps[i];
+                
+                // Pulsating effect
+                powerUp.pulse += powerUp.pulseDirection;
+                if (powerUp.pulse >= 1 || powerUp.pulse <= 0) {
+                    powerUp.pulseDirection *= -1;
+                }
+                
+                // Check collision with player
+                const distance = Math.hypot(player.x - powerUp.x, player.y - powerUp.y);
+                
+                if (distance - player.radius - powerUp.radius < 0) {
+                    // Apply power-up
+                    activatePowerUp(powerUp.type);
+                    
+                    // Track power-up collection
+                    if (powerUp.type === 'rapidFire') {
+                        powerupStats.rapidFireCollected++;
+                    } else if (powerUp.type === 'shield') {
+                        powerupStats.shieldCollected++;
+                    } else if (powerUp.type === 'healthBoost') {
+                        powerupStats.healthBoostCollected++;
+                    }
+                    
+                    // Create collection particles
+                    for (let k = 0; k < 12; k++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 3 + 1;
+                        
+                        particles.push({
+                            x: powerUp.x,
+                            y: powerUp.y,
+                            radius: Math.random() * 3 + 1,
+                            color: powerUp.color,
+                            velocity: {
+                                x: Math.cos(angle) * speed,
+                                y: Math.sin(angle) * speed
+                            },
+                            alpha: 1,
+                            fadeSpeed: 0.02
+                        });
+                    }
+                    
+                    powerUps.splice(i, 1);
+                }
+            }
+        }
+        
+        function activatePowerUp(type) {
+            // Deactivate current power-up
+            deactivatePowerUp();
+            
+            currentPowerUp = type;
+            powerUpTimer = 6000; // 6 seconds
+            borderEffect.isRainbow = false; // Ensure rainbow is disabled
+            borderEffect.opacity = 1; // Full opacity for power-ups
+            
+            if (type === 'rapidFire') {
+                rapidFireActive = true;
+                borderEffect.color = '#aa44ff'; // Purple for rapid fire
+            } else if (type === 'shield') {
+                shieldActive = true;
+                shieldEndTime = Date.now() + 5000; // Shield lasts for 5 seconds
+                borderEffect.color = '#00aaff'; // Blue for shield
+            } else if (type === 'healthBoost') {
+                // Make health boost more reliable
+                const previousHealth = player.health;
+                player.health = Math.min(player.maxHealth, player.health + 30);
+                
+                // Force health to update by a minimum amount if it didn't change
+                if (player.health === previousHealth && player.health < player.maxHealth) {
+                    player.health = Math.min(player.maxHealth, player.health + 10);
+                }
+                
+                currentPowerUp = null; // Health boost is instant
+                
+                // Single green pulse for health
+                borderEffect.color = '#00ff00'; // Green for health
+                borderEffect.isPulsing = true;
+                borderEffect.pulseValue = 0;
+                borderEffect.pulseDirection = 1;
+                borderEffect.pulseSpeed = 0.15; // Faster pulse for health
+                
+                // Set timeout to reset border after the pulse
+                setTimeout(() => {
+                    if (currentPowerUp === null) { // Only reset if no other power-up is active
+                        borderEffect.isPulsing = false;
+                        // Gradually fade out border after health pulse
+                        const borderElement = document.getElementById('gameBorder');
+                        borderElement.style.opacity = '0';
+                    }
+                }, 3000); // Reset after 3 seconds (increased from 1 second)
+            }
+            
+            // Update canvas border
+            updateBorderEffect();
+        }
+        
+        function deactivatePowerUp() {
+            if (currentPowerUp === 'rapidFire') {
+                rapidFireActive = false;
+            } else if (currentPowerUp === 'shield') {
+                shieldActive = false;
+            }
+            
+            currentPowerUp = null;
+            
+            // Reset border and make it invisible with transition
+            borderEffect.isPulsing = false;
+            borderEffect.isRainbow = false; // Ensure rainbow is disabled
+            const borderElement = document.getElementById('gameBorder');
+            borderElement.style.opacity = '0';
+            updateBorderEffect();
+        }
+        
+        // Function to update the canvas border effect
+        function updateBorderEffect() {
+            const borderElement = document.getElementById('gameBorder');
+            
+            // Always ensure rainbow effect is disabled
+            borderEffect.isRainbow = false;
+            
+            // Handle flash effects (takes priority)
+            if (borderEffect.isFlashing) {
+                borderEffect.flashDuration--;
+                
+                if (borderEffect.flashDuration <= 0) {
+                    borderEffect.isFlashing = false;
+                    // Make border invisible again after flash ends, with transition
+                    borderElement.style.opacity = '0';
+                } else {
+                    // Flash with intensity based on remaining flash duration
+                    const flashIntensity = 10 + Math.floor((borderEffect.flashDuration / 10) * 20);
+                    
+                    // Apply flash with full opacity
+                    borderElement.style.borderColor = borderEffect.flashColor;
+                    borderElement.style.boxShadow = `0 0 5px ${borderEffect.flashColor}, 0 0 ${flashIntensity}px ${borderEffect.flashColor}, inset 0 0 5px ${borderEffect.flashColor}, inset 0 0 ${flashIntensity}px ${borderEffect.flashColor}`;
+                    borderElement.style.opacity = '1'; // Full opacity during flash
+                    return; // Skip other effects during flash
+                }
+            }
+            
+            // For power-ups and other non-flash states
+            if (currentPowerUp !== null || borderEffect.isPulsing) {
+                // Apply styles with full opacity for power-ups
+                borderElement.style.borderColor = borderEffect.color;
+                
+                if (borderEffect.isPulsing) {
+                    // Create pulsing glow effect
+                    borderEffect.pulseValue += borderEffect.pulseDirection * borderEffect.pulseSpeed;
+                    
+                    if (borderEffect.pulseValue >= 1) {
+                        borderEffect.pulseValue = 1;
+                        borderEffect.pulseDirection = -1;
+                    } else if (borderEffect.pulseValue <= 0) {
+                        borderEffect.pulseValue = 0;
+                        borderEffect.pulseDirection = 1;
+                    }
+                    
+                    // Calculate the intensity of the glow based on pulse value
+                    const intensity = 10 + Math.floor(borderEffect.pulseValue * 20);
+                    
+                    // Update CSS variables
+                    document.documentElement.style.setProperty('--border-color', borderEffect.color);
+                    document.documentElement.style.setProperty('--glow-intensity', intensity + 'px');
+                    
+                    // Apply the styles with full opacity during pulse
+                    borderElement.style.boxShadow = `0 0 5px ${borderEffect.color}, 0 0 ${intensity}px ${borderEffect.color}, inset 0 0 5px ${borderEffect.color}, inset 0 0 ${intensity}px ${borderEffect.color}`;
+                    borderElement.style.opacity = '1';
+                } else {
+                    // Standard glow effect for active power-ups
+                    document.documentElement.style.setProperty('--border-color', borderEffect.color);
+                    document.documentElement.style.setProperty('--glow-intensity', '10px');
+                    
+                    borderElement.style.boxShadow = `0 0 5px ${borderEffect.color}, 0 0 10px ${borderEffect.color}, inset 0 0 5px ${borderEffect.color}, inset 0 0 10px ${borderEffect.color}`;
+                    borderElement.style.opacity = '1';
+                }
+            } else {
+                // Keep border invisible during normal gameplay
+                borderElement.style.opacity = '0';
+            }
+        }
+        
+        function spawnHealingBlob() {
+            healingBlobs.push({
+                x: Math.random() * (canvas.width - 80) + 40,
+                y: Math.random() * (canvas.height - 80) + 40,
+                radius: 15, // Increased size
+                color: '#22ff22',
+                pulse: 0,
+                pulseDirection: 0.04,
+                healAmount: 15 // Health restored when collected
+            });
+        }
+        
+        function updateHealingBlobs() {
+            for (let i = healingBlobs.length - 1; i >= 0; i--) {
+                const blob = healingBlobs[i];
+                
+                // Pulsating effect
+                blob.pulse += blob.pulseDirection;
+                if (blob.pulse >= 1 || blob.pulse <= 0) {
+                    blob.pulseDirection *= -1;
+                }
+                
+                // Check collision with player
+                const distance = Math.hypot(player.x - blob.x, player.y - blob.y);
+                
+                if (distance - player.radius - blob.radius < 0) {
+                    // Heal the player - Ensure it works reliably
+                    const previousHealth = player.health;
+                    player.health = Math.min(player.maxHealth, player.health + blob.healAmount);
+                    
+                    // Force health to update by a minimum amount if it didn't change
+                    if (player.health === previousHealth && player.health < player.maxHealth) {
+                        player.health = Math.min(player.maxHealth, player.health + 5);
+                    }
+                    
+                    // Green flash for healing
+                    borderEffect.isFlashing = true;
+                    borderEffect.flashDuration = 15; // Flash for 15 frames
+                    borderEffect.flashColor = '#00ff00'; // Green flash for healing
+                    borderEffect.isRainbow = false; // Ensure rainbow is disabled
+                    
+                    // Create healing particles
+                    for (let k = 0; k < 12; k++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 3 + 1;
+                        
+                        particles.push({
+                            x: blob.x,
+                            y: blob.y,
+                            radius: Math.random() * 3 + 1,
+                            color: blob.color,
+                            velocity: {
+                                x: Math.cos(angle) * speed,
+                                y: Math.sin(angle) * speed
+                            },
+                            alpha: 1,
+                            fadeSpeed: 0.02
+                        });
+                    }
+                    
+                    healingBlobs.splice(i, 1);
+                }
+            }
+        }
+        
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Apply camera shake
+            ctx.save();
+            ctx.translate(cameraShake.offsetX, cameraShake.offsetY);
+            
+            // Draw star background
+            drawStars();
+            
+            // Draw healing blobs
+            healingBlobs.forEach(blob => {
+                ctx.beginPath();
+                ctx.arc(blob.x, blob.y, blob.radius + blob.pulse * 5, 0, Math.PI * 2);
+                ctx.fillStyle = blob.color + '44'; // Add transparency
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
+                ctx.fillStyle = blob.color;
+                ctx.fill();
+                
+                // Add a cross symbol to indicate healing
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(blob.x - blob.radius/2, blob.y);
+                ctx.lineTo(blob.x + blob.radius/2, blob.y);
+                ctx.moveTo(blob.x, blob.y - blob.radius/2);
+                ctx.lineTo(blob.x, blob.y + blob.radius/2);
+                ctx.stroke();
+            });
+            
+            // Draw power-ups
+            powerUps.forEach(powerUp => {
+                // Draw pulsing outer circle
+                ctx.beginPath();
+                ctx.arc(powerUp.x, powerUp.y, powerUp.radius + powerUp.pulse * 5, 0, Math.PI * 2);
+                ctx.fillStyle = powerUp.color + '44'; // Add transparency
+                ctx.fill();
+                
+                // Draw inner circlesdd
+                ctx.beginPath();
+                ctx.arc(powerUp.x, powerUp.y, powerUp.radius, 0, Math.PI * 2);
+                ctx.fillStyle = powerUp.color;
+                ctx.fill();
+                
+                // Draw appropriate icon for each power-up type
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                
+                if (powerUp.type === 'rapidFire') {
+                    // Draw lightning bolt for rapid fire
+                    ctx.beginPath();
+                    ctx.moveTo(powerUp.x - powerUp.radius/6, powerUp.y - powerUp.radius/2);
+                    ctx.lineTo(powerUp.x + powerUp.radius/6, powerUp.y);
+                    ctx.lineTo(powerUp.x - powerUp.radius/6, powerUp.y + powerUp.radius/2);
+                    ctx.stroke();
+                } else if (powerUp.type === 'shield') {
+                    // Draw shield symbol as a white circle
+                    ctx.beginPath();
+                    ctx.arc(powerUp.x, powerUp.y, powerUp.radius * 0.5, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Add a subtle white fill for better visibility
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.fill();
+                } else if (powerUp.type === 'healthBoost') {
+                    // Draw cross for health (like the healing blobs)
+                    ctx.beginPath();
+                    ctx.moveTo(powerUp.x - powerUp.radius/2, powerUp.y);
+                    ctx.lineTo(powerUp.x + powerUp.radius/2, powerUp.y);
+                    ctx.moveTo(powerUp.x, powerUp.y - powerUp.radius/2);
+                    ctx.lineTo(powerUp.x, powerUp.y + powerUp.radius/2);
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw particles
+            particles.forEach(particle => {
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+                ctx.fillStyle = particle.color + Math.floor(particle.alpha * 255).toString(16).padStart(2, '0');
+                ctx.fill();
+            });
+            
+            // Draw projectiles
+            projectiles.forEach(projectile => {
+                ctx.beginPath();
+                ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
+                ctx.fillStyle = projectile.color;
+                ctx.fill();
+            });
+            
+            // Draw enemies
+            enemies.forEach(enemy => {
+                // Add glow effect for enemies
+                ctx.shadowColor = enemy.color;
+                ctx.shadowBlur = 15;
+                
+                // Main enemy body
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                ctx.fillStyle = enemy.color;
+                ctx.fill();
+                
+                // Add highlight for more depth
+                ctx.beginPath();
+                ctx.arc(enemy.x - enemy.radius * 0.3, enemy.y - enemy.radius * 0.3, enemy.radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fill();
+                
+                // Reset shadow for other elements
+                ctx.shadowBlur = 0;
+                
+                // Draw health bar for ALL enemies, not just multi-hit ones
+                const healthBarWidth = enemy.radius * 2;
+                const healthBarHeight = 4;
+                const healthBarX = enemy.x - enemy.radius;
+                const healthBarY = enemy.y - enemy.radius - 10;
+                
+                // Background
+                ctx.fillStyle = '#222';
+                ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+                
+                // Health remaining - with color based on health percentage and enemy tier
+                const healthPercent = enemy.health / enemy.maxHealth;
+                let healthBarColor;
+                
+                if (enemy.tier === 1) {
+                    // Yellow enemies always show green (they only have 1 health)
+                    healthBarColor = '#00cc00'; // Green
+                } else if (enemy.tier === 2) {
+                    // Orange enemies: Green when full, red below 50%
+                    if (healthPercent > 0.5) {
+                        healthBarColor = '#00cc00'; // Green
+                    } else {
+                        healthBarColor = '#cc0000'; // Red
+                    }
+                } else if (enemy.tier === 3) {
+                    // Red enemies - use actual health values instead of percentages to avoid floating point issues
+                    if (enemy.health === 3) { // 100% - full health
+                        healthBarColor = '#00cc00'; // Green
+                    } else if (enemy.health === 2) { // 66% - between thresholds
+                        healthBarColor = '#ff9944'; // Orange
+                    } else { // 33% or less - 1 health point left
+                        healthBarColor = '#cc0000'; // Red
+                    }
+                }
+                
+                ctx.fillStyle = healthBarColor;
+                ctx.fillRect(healthBarX, healthBarY, healthPercent * healthBarWidth, healthBarHeight);
+                
+                // Border
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+            });
+            
+            // Draw player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.lookAngle);
+            
+            // Draw player ship with more details and enhanced design
+            // Outer glow
+            ctx.shadowColor = player.glowColor;
+            ctx.shadowBlur = 25;
+            
+            // Main body
+            ctx.beginPath();
+            ctx.moveTo(player.radius, 0);
+            ctx.lineTo(-player.radius / 2, -player.radius / 2);
+            ctx.lineTo(-player.radius / 2, player.radius / 2);
+            ctx.closePath();
+            ctx.fillStyle = player.color;
+            ctx.fill();
+            
+            // Add details to ship - cockpit
+            ctx.beginPath();
+            ctx.arc(player.radius / 3, 0, player.radius / 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            
+            // Wing details
+            ctx.beginPath();
+            ctx.moveTo(player.radius / 4, -player.radius / 3);
+            ctx.lineTo(-player.radius / 3, -player.radius / 2);
+            ctx.lineTo(-player.radius / 4, -player.radius / 3);
+            ctx.closePath();
+            ctx.fillStyle = '#0088cc';
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.moveTo(player.radius / 4, player.radius / 3);
+            ctx.lineTo(-player.radius / 3, player.radius / 2);
+            ctx.lineTo(-player.radius / 4, player.radius / 3);
+            ctx.closePath();
+            ctx.fillStyle = '#0088cc';
+            ctx.fill();
+            
+            // Ship highlight
+            ctx.beginPath();
+            ctx.moveTo(player.radius - 5, -2);
+            ctx.lineTo(player.radius - 15, -5);
+            ctx.lineTo(player.radius - 5, 2);
+            ctx.closePath();
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            
+            // Draw engine flame
+            if (player.direction.x !== 0 || player.direction.y !== 0) {
+                // Main flame
+                ctx.beginPath();
+                ctx.moveTo(-player.radius / 2, -player.radius / 6);
+                ctx.lineTo(-player.radius - Math.random() * 15, 0);
+                ctx.lineTo(-player.radius / 2, player.radius / 6);
+                ctx.closePath();
+                
+                // Create gradient for flame
+                const flameGradient = ctx.createLinearGradient(
+                    -player.radius / 2, 0, 
+                    -player.radius - 15, 0
+                );
+                flameGradient.addColorStop(0, '#ffffff');
+                flameGradient.addColorStop(0.3, '#ffaa00');
+                flameGradient.addColorStop(1, '#ff4400');
+                
+                ctx.fillStyle = flameGradient;
+                ctx.fill();
+                
+                // Add glow to engine
+                ctx.shadowColor = '#ffaa00';
+                ctx.shadowBlur = 20;
+                ctx.fill();
+            }
+            
+            ctx.restore();
+            
+            // Draw shield if active
+            if (shieldActive) {
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.radius + 15, 0, Math.PI * 2);
+                ctx.strokeStyle = '#00aaff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // Add shield glow
+                ctx.shadowColor = '#00aaff';
+                ctx.shadowBlur = 15;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                // Add second inner shield ring with animation
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(0, 170, 255, 0.7)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Add pulsing effect
+                const pulseSize = Math.sin(Date.now() * 0.005) * 5 + 5;
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.radius + pulseSize, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(0, 170, 255, 0.3)';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+            
+            // Draw floating score texts
+            floatingTexts.forEach(text => {
+                ctx.font = `bold ${text.size}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillStyle = text.color + Math.floor(text.alpha * 255).toString(16).padStart(2, '0');
+                ctx.fillText(text.value, text.x, text.y);
+                
+                // Add glow effect for text
+                ctx.shadowColor = text.color;
+                ctx.shadowBlur = 10;
+                ctx.fillText(text.value, text.x, text.y);
+                ctx.shadowBlur = 0;
+            });
+            
+            // Reset camera shake for UI elements
+            ctx.restore();
+            
+            // Draw health bar and weapon heat bar attached to player
+            // Position the bars above the player
+            const barWidth = 60;
+            const healthBarHeight = 8;
+            const heatBarHeight = 4;
+            const barSpacing = 3;
+            const barDistance = 30; // Distance above player
+            
+            // Health bar background with rounded ends
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.beginPath();
+            ctx.roundRect(
+                player.x - barWidth/2, 
+                player.y - player.radius - barDistance - healthBarHeight - heatBarHeight - barSpacing,
+                barWidth, 
+                healthBarHeight,
+                3 // Rounded corners
+            );
+            ctx.fill();
+            
+            // Health fill with rounded ends
+            const healthPercent = player.health / player.maxHealth;
+            ctx.fillStyle = player.health > 30 ? '#00cc00' : '#cc0000';
+            ctx.beginPath();
+            ctx.roundRect(
+                player.x - barWidth/2, 
+                player.y - player.radius - barDistance - healthBarHeight - heatBarHeight - barSpacing,
+                barWidth * healthPercent, 
+                healthBarHeight,
+                3 // Rounded corners
+            );
+            ctx.fill();
+            
+            // Health bar border
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(
+                player.x - barWidth/2, 
+                player.y - player.radius - barDistance - healthBarHeight - heatBarHeight - barSpacing,
+                barWidth, 
+                healthBarHeight,
+                3 // Rounded corners
+            );
+            ctx.stroke();
+            
+            // Heat bar background with rounded ends
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.beginPath();
+            ctx.roundRect(
+                player.x - barWidth/2, 
+                player.y - player.radius - barDistance - heatBarHeight,
+                barWidth, 
+                heatBarHeight,
+                2 // Rounded corners
+            );
+            ctx.fill();
+            
+            // Heat fill with rounded ends
+            const heatPercent = player.heat / player.maxHeat;
+            // Color changes from green to yellow to red based on heat
+            let heatColor;
+            if (player.heat < 40) heatColor = '#00cc00';
+            else if (player.heat < 80) heatColor = '#cccc00';
+            else heatColor = '#cc0000';
+            
+            ctx.fillStyle = player.overheated ? '#ff0000' : heatColor;
+            ctx.beginPath();
+            ctx.roundRect(
+                player.x - barWidth/2, 
+                player.y - player.radius - barDistance - heatBarHeight,
+                barWidth * heatPercent, 
+                heatBarHeight,
+                2 // Rounded corners
+            );
+            ctx.fill();
+            
+            // Heat bar border
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(
+                player.x - barWidth/2, 
+                player.y - player.radius - barDistance - heatBarHeight,
+                barWidth, 
+                heatBarHeight,
+                2 // Rounded corners
+            );
+            ctx.stroke();
+            
+            // Show "OVERHEATED" message when weapon is overheated
+            if (player.overheated) {
+                ctx.fillStyle = '#ff0000';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('OVERHEATED', player.x, player.y - player.radius - 45);
+            }
+            
+            // Remove the plain text wave and score display
+            // (Removing these lines of code below)
+            // ctx.fillStyle = '#fff';
+            // ctx.font = '20px Arial';
+            // ctx.textAlign = 'right';
+            // ctx.fillText(`Score: ${score}`, canvas.width - 20, 35);
+            // ctx.textAlign = 'center';
+            // ctx.fillText(`Wave ${waveNumber}`, canvas.width / 2, 35);
+            // if (waveActive) {
+            //     ctx.font = '16px Arial';
+            //     ctx.fillText(`Enemies: ${enemies.length} / ${enemiesInWave}`, canvas.width / 2, 60);
+            // }
+            
+            // Draw velocity indicator (shows direction and magnitude of movement)
+            const velocityMagnitude = Math.hypot(player.velocity.x, player.velocity.y);
+            if (velocityMagnitude > 0.1) {
+                ctx.beginPath();
+                ctx.moveTo(player.x, player.y);
+                ctx.lineTo(
+                    player.x + player.velocity.x * 5, 
+                    player.y + player.velocity.y * 5
+                );
+                ctx.strokeStyle = '#ffffff55';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            
+            // Draw wave messages
+            if (showingWaveMessage) {
+                ctx.font = 'bold 32px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = `rgba(255, 255, 255, ${waveMessageOpacity})`;
+                ctx.fillText(waveMessage, canvas.width / 2, canvas.height / 2);
+                
+                // Add a glowing effect
+                ctx.shadowColor = '#0066ff';
+                ctx.shadowBlur = 20;
+                ctx.fillText(waveMessage, canvas.width / 2, canvas.height / 2);
+                ctx.shadowBlur = 0;
+            }
+            
+            // Draw countdown between waves
+            if (!waveActive && waveCountdown > 0) {
+                // Create a background for the countdown
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(canvas.width/2 - 50, canvas.height/2 + 20, 100, 50);
+                
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ff9900';
+                ctx.fillText(waveCountdown.toString(), canvas.width / 2, canvas.height / 2 + 60);
+            }
+            
+            // Draw the enhanced scoreboard
+            drawEnhancedScoreboard();
+        }
+        
+        function drawStars() {
+            // Create a more immersive starfield that fills the entire canvas
+            const starCount = Math.floor((canvas.width * canvas.height) / 3000); // More stars
+            
+            // Use static positions with animated brightness for twinkling effect
+            for (let i = 0; i < starCount; i++) {
+                // Use a hash function to generate pseudorandom but consistent positions
+                // This prevents stars from moving position each frame
+                const hash1 = Math.sin(i * 7919) * 10000;
+                const hash2 = Math.cos(i * 6367) * 10000;
+                
+                // Distribute stars across the entire canvas
+                const x = (hash1 - Math.floor(hash1)) * canvas.width;
+                const y = (hash2 - Math.floor(hash2)) * canvas.height;
+                
+                // Vary star sizes
+                const size = (Math.sin(i * 3557) * 0.5 + 0.5) * 2 + 0.5;
+                
+                // Create twinkling effect - different stars twinkle at different rates
+                const time = Date.now() * (0.0001 + (i % 10) * 0.00005);
+                const brightness = Math.floor((Math.sin(time + i) * 0.5 + 0.5) * 155 + 100);
+                
+                // Add depth by varying the color slightly
+                const r = brightness;
+                const g = brightness;
+                const b = Math.min(255, brightness + (i % 30));
+                
+                // Draw the star
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                if (i % 5 === 0) {
+                    // Some stars are circles
+                    ctx.beginPath();
+                    ctx.arc(x, y, size * 0.8, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Others are squares
+                    ctx.fillRect(x, y, size, size);
+                }
+            }
+            
+            // Add a few shooting stars occasionally
+            if (Math.random() < 0.02) { // 2% chance each frame
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height / 3, // Top third of screen
+                    radius: 1,
+                    color: '#ffffff',
+                    velocity: {
+                        x: (Math.random() - 0.5) * 15,
+                        y: Math.random() * 10 + 5
+                    },
+                    alpha: 1,
+                    fadeSpeed: 0.01,
+                    isShootingStar: true,
+                    trail: []
+                });
+            }
+            
+            // Render shooting star trails
+            for (let i = 0; i < particles.length; i++) {
+                const particle = particles[i];
+                if (particle.isShootingStar) {
+                    // Add current position to trail
+                    particle.trail.unshift({ x: particle.x, y: particle.y });
+                    
+                    // Limit trail length
+                    if (particle.trail.length > 10) {
+                        particle.trail.pop();
+                    }
+                    
+                    // Draw trail
+                    ctx.beginPath();
+                    ctx.moveTo(particle.x, particle.y);
+                    
+                    for (let j = 0; j < particle.trail.length; j++) {
+                        const point = particle.trail[j];
+                        ctx.lineTo(point.x, point.y);
+                    }
+                    
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${particle.alpha * 0.5})`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+        }
+        
+        function gameOver() {
+            gameActive = false;
+            finalScoreDisplay.textContent = score;
+            gameOverScreen.style.display = 'block';
+            
+            // Center the gameOver screen
+            gameOverScreen.style.top = '50%';
+            gameOverScreen.style.left = '50%';
+            gameOverScreen.style.transform = 'translate(-50%, -50%)';
+        }
+        
+        function restartGame() {
+            // Reset game state
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            player.health = player.maxHealth;
+            player.velocity = { x: 0, y: 0 };
+            player.heat = 0;
+            player.overheated = false;
+            
+            projectiles.length = 0;
+            enemies.length = 0;
+            particles.length = 0;
+            powerUps.length = 0;
+            healingBlobs.length = 0;
+            
+            score = 0;
+            waveNumber = 1;
+            enemiesInWave = 10;
+            enemiesRemaining = enemiesInWave;
+            waveActive = true;
+            enemySpawnRate = 1000;
+            
+            // Show first wave message
+            waveMessage = "WAVE 1 STARTED!";
+            waveMessageOpacity = 1;
+            showingWaveMessage = true;
+            
+            deactivatePowerUp();
+            
+            // Reset border effect - ensure it's invisible at start
+            borderEffect.color = '#0066ff';
+            borderEffect.isPulsing = false;
+            borderEffect.isRainbow = false; // Ensure rainbow is completely disabled
+            borderEffect.opacity = 0;
+            const borderElement = document.getElementById('gameBorder');
+            borderElement.style.opacity = '0';
+            updateBorderEffect();
+            
+            gameActive = true;
+            gameOverScreen.style.display = 'none';
+            
+            // Make sure pause menu is hidden
+            isPaused = false;
+            pauseMenu.style.display = 'none';
+            
+            // Reset scoreboard stats
+            enemyStats.tier1Destroyed = 0;
+            enemyStats.tier2Destroyed = 0;
+            enemyStats.tier3Destroyed = 0;
+            accuracy.shotsFired = 0;
+            accuracy.hitsLanded = 0;
+            powerupStats.rapidFireCollected = 0;
+            powerupStats.shieldCollected = 0;
+            powerupStats.healthBoostCollected = 0;
+            scoreAnimation.active = false;
+            
+            // Start game loop
+            if (!animationFrameId) {
+                update();
+            }
+        }
+        
+        // Render start screen with animated stars
+        function renderStartScreen() {
+            if (!showingStartScreen) return;
+            
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw animated star background
+            drawStars();
+            
+            // Request next frame
+            requestAnimationFrame(renderStartScreen);
+        }
+        
+        // Start the render loop for the start screen
+        renderStartScreen();
+        
+        // Apply camera shake effect
+        function applyCameraShake(intensity, duration) {
+            cameraShake.intensity = intensity;
+            cameraShake.duration = duration;
+            cameraShake.maxDuration = duration;
+        }
+        
+        // Update camera shake
+        function updateCameraShake() {
+            if (cameraShake.duration > 0) {
+                // Calculate shake intensity based on remaining duration
+                const currentIntensity = (cameraShake.intensity * cameraShake.duration) / cameraShake.maxDuration;
+                
+                // Random offset based on intensity
+                cameraShake.offsetX = (Math.random() * 2 - 1) * currentIntensity;
+                cameraShake.offsetY = (Math.random() * 2 - 1) * currentIntensity;
+                
+                // Decrease duration
+                cameraShake.duration -= 1;
+            } else {
+                cameraShake.offsetX = 0;
+                cameraShake.offsetY = 0;
+            }
+        }
+        
+        // Update floating score indicators
+        function updateFloatingTexts() {
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const text = floatingTexts[i];
+                
+                // Move upward
+                text.x += text.velocity.x;
+                text.y += text.velocity.y;
+                
+                // Update lifespan and fade
+                text.lifespan--;
+                text.alpha = text.lifespan / 60; // Fade based on remaining life
+                
+                // Remove expired texts
+                if (text.lifespan <= 0) {
+                    floatingTexts.splice(i, 1);
+                }
+            }
+        }
+        
+        // New function to draw the enhanced scoreboard
+        function drawEnhancedScoreboard() {
+            // Position and size variables
+            const margin = 15;
+            const panelWidth = 240;  // Increased from 220 to 240
+            const panelHeight = 150; // Increased from 130 to 150 to fit content better
+            const cornerRadius = 10;
+            
+            // Draw the main scoreboard panel
+            ctx.save();
+            
+            // Create the scoreboard container
+            ctx.fillStyle = 'rgba(0, 20, 40, 0.7)';
+            ctx.beginPath();
+            ctx.roundRect(
+                canvas.width - panelWidth - margin, 
+                margin, 
+                panelWidth, 
+                panelHeight,
+                cornerRadius
+            );
+            ctx.fill();
+            
+            // Add a glowing border
+            ctx.strokeStyle = '#0066ff';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#0066ff';
+            ctx.shadowBlur = 8;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            
+            // Add header accent line
+            const headerHeight = 40;
+            ctx.fillStyle = 'rgba(0, 60, 120, 0.8)';
+            ctx.beginPath();
+            ctx.roundRect(
+                canvas.width - panelWidth - margin, 
+                margin, 
+                panelWidth, 
+                headerHeight,
+                { upperLeft: cornerRadius, upperRight: cornerRadius, lowerLeft: 0, lowerRight: 0 }
+            );
+            ctx.fill();
+            
+            // Title text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(
+                'SPACE DEFENDER', 
+                canvas.width - panelWidth/2 - margin, 
+                margin + 25
+            );
+            
+            // Panel content
+            const contentX = canvas.width - panelWidth - margin + 20; // Increased left padding
+            let contentY = margin + headerHeight + 30; // Increased top padding after header
+            const lineHeight = 28; // Increased from 25
+            
+            // Score with animation and flash effect
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 16px Arial';
+            
+            // Determine score text and color based on animation
+            let displayScore = score;
+            let scoreColor = '#ffffff';
+            
+            if (scoreAnimation.active) {
+                const elapsed = Date.now() - scoreAnimation.startTime;
+                const progress = Math.min(1, elapsed / (scoreAnimation.duration * 16.67)); // 16.67ms per frame at 60fps
+                
+                if (progress < 1) {
+                    displayScore = Math.round(scoreAnimation.value + (scoreAnimation.targetValue - scoreAnimation.value) * progress);
+                } else {
+                    scoreAnimation.active = false;
+                }
+            }
+            
+            if (scoreFlash > 0) {
+                scoreColor = `rgb(${255}, ${255}, ${150 + Math.floor(scoreFlash * 10)})`;
+                scoreFlash--;
+            }
+            
+            // Score label
+            ctx.fillStyle = '#66aaff';
+            ctx.fillText('SCORE:', contentX, contentY);
+            
+            // Score value with larger text
+            ctx.font = 'bold 22px Arial';
+            ctx.fillStyle = scoreColor;
+            ctx.textAlign = 'right';
+            ctx.fillText(displayScore.toString(), canvas.width - margin - 20, contentY);
+            contentY += lineHeight + 5;
+            
+            // High score
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#66aaff';
+            ctx.fillText('HIGH SCORE:', contentX, contentY);
+            
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(highScore.toString(), canvas.width - margin - 20, contentY);
+            contentY += lineHeight + 2; // slightly more space
+            
+            // Draw wave information
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#66aaff';
+            ctx.fillText('WAVE:', contentX, contentY);
+            
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(`${waveNumber}`, canvas.width - margin - 20, contentY);
+            
+            // Wave counter in the center top
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = 'rgba(0, 20, 40, 0.7)';
+            ctx.roundRect(
+                canvas.width/2 - 80, // Slightly wider 
+                margin, 
+                160, // Increased from 140
+                waveActive ? 50 : 30,
+                cornerRadius
+            );
+            ctx.fill();
+            
+            ctx.strokeStyle = '#0066ff';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#0066ff';
+            ctx.shadowBlur = 8;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px Arial';
+            ctx.fillText(`WAVE ${waveNumber}`, canvas.width/2, margin + 20);
+            
+            if (waveActive) {
+                ctx.font = '14px Arial';
+                ctx.fillText(`Enemies: ${enemies.length} / ${enemiesInWave}`, canvas.width/2, margin + 40);
+            }
+            
+            ctx.restore();
+        }
+    </script>
+</body>
+</html>
