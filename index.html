@@ -831,32 +831,50 @@
             // Tier 2 (orange): Medium, moderate speed, 2 hits to kill
             // Tier 3 (red): Large, slow, 3 hits to kill
             
-            // Weighted enemy tier selection (higher chance for weaker enemies)
-            // Higher waves have more high-tier enemies
-            let tierRoll = Math.random();
-            
-            // Adjust tier probabilities based on wave number - increase factor for higher waves
-            const waveFactor = Math.min(0.6, (waveNumber - 1) * 0.1); // Increased from 0.05 to 0.1, max from 0.5 to 0.6
-            tierRoll -= waveFactor; // This makes higher tiers more likely in later waves
-            
+            // Weighted enemy tier selection based on wave number
             let tier, color, health, size, speedFactor, damage;
             
-            if (tierRoll < 0.5) {  // Reduced from 0.6 to 0.5 (50% chance for tier 1)
-                tier = 1;
+            // Fix: Completely reworked enemy tier selection logic
+            // This ensures higher tier enemies always spawn in later waves
+            const waveModifier = Math.min(0.7, (waveNumber - 1) * 0.05);
+            const tierRoll = Math.random();
+            
+            // Wave-dependent tier thresholds
+            const tier2Threshold = Math.max(0.2, 0.6 - waveModifier); // Decreases with higher waves
+            const tier3Threshold = Math.max(0.5, 0.85 - waveModifier); // Decreases with higher waves
+            
+            // Force spawn higher tier enemies in higher waves
+            if (waveNumber >= 10 && Math.random() < 0.5) {
+                // 50% chance to be tier 3 enemy after wave 10
+                tier = 3;
+            } else if (waveNumber >= 5 && Math.random() < 0.4) {
+                // 40% chance to be at least tier 2 enemy after wave 5
+                tier = Math.random() < 0.6 ? 3 : 2;
+            } else if (tierRoll < tier2Threshold) {
+                tier = 1; // Yellow
+            } else if (tierRoll < tier3Threshold) {
+                tier = 2; // Orange
+            } else {
+                tier = 3; // Red
+            }
+            
+            // Debug info to console
+            console.log(`Wave ${waveNumber}: Spawning tier ${tier} enemy`);
+            
+            // Set enemy properties based on tier
+            if (tier === 1) {
                 color = '#ffff00'; // Brighter yellow
                 health = 1;
                 size = 10 + Math.random() * 5;
                 speedFactor = 1.2;
                 damage = 10;
-            } else if (tierRoll < 0.8) { // Reduced from 0.9 to 0.8 (30% chance for tier 2)
-                tier = 2;
+            } else if (tier === 2) {
                 color = '#ff6600'; // Brighter orange
                 health = 2;
                 size = 15 + Math.random() * 8;
                 speedFactor = 1.0;
                 damage = 20;
-            } else { // Increased from 10% to 20% chance for tier 3
-                tier = 3;
+            } else { // tier 3
                 color = '#ff0000'; // Pure red
                 health = 3;
                 size = 20 + Math.random() * 12;
@@ -1729,7 +1747,7 @@
             // Draw countdown between waves
             if (!waveActive && waveCountdown > 0) {
                 // Create a background for the countdown
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.0)';
                 ctx.fillRect(canvas.width/2 - 50, canvas.height/2 + 20, 100, 50);
                 
                 ctx.font = 'bold 48px Arial';
